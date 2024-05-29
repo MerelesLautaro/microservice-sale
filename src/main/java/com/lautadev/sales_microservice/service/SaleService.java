@@ -5,6 +5,8 @@ import com.lautadev.sales_microservice.dto.SaleDTO;
 import com.lautadev.sales_microservice.model.Sale;
 import com.lautadev.sales_microservice.repository.ICartAPIClient;
 import com.lautadev.sales_microservice.repository.ISaleRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,8 @@ public class SaleService implements ISaleService {
     }
 
     @Override
+    @CircuitBreaker(name="cart-microservice", fallbackMethod = "fallbackGetSales")
+    @Retry(name = "cart-microservice")
     public List<SaleDTO> getSales() {
         List<Sale> listSale = saleRepo.findAll();
         List<SaleDTO> listSaleDTO = new LinkedList<>();
@@ -51,12 +55,22 @@ public class SaleService implements ISaleService {
         return listSaleDTO;
     }
 
+    public List<CartDTO> fallbackGetSales(Throwable throwable) {
+        return new ArrayList<>();
+    }
+
     @Override
+    @CircuitBreaker(name="cart-microservice", fallbackMethod = "fallbackFindSales")
+    @Retry(name = "cart-microservice")
     public SaleDTO findSale(Long id) {
         Sale sale = saleRepo.findById(id).orElse(null);
         assert sale != null;
         CartDTO cartDTO = cartAPI.findCart(sale.getIdCart());
         return new SaleDTO(sale.getId(),sale.getDateOfSale(),cartDTO);
+    }
+
+    public List<CartDTO> fallbackFindSales(Throwable throwable) {
+        return new ArrayList<>();
     }
 
     @Override
@@ -66,6 +80,12 @@ public class SaleService implements ISaleService {
 
     @Override
     public void editSale(Long id, Sale sale) {
+        Sale saleEdit = saleRepo.findById(id).orElse(null);
 
+        assert saleEdit != null;
+        saleEdit.setDateOfSale(sale.getDateOfSale());
+        saleEdit.setIdCart(sale.getIdCart());
+
+        saleRepo.save(saleEdit);
     }
 }

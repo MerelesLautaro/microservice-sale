@@ -35,4 +35,10 @@ public class SaleController {
         saleServ.deleteSale(id);
         return "Sale deleted";
     }
+
+    @PutMapping("/edit")
+    public SaleDTO editSale(@RequestBody Sale sale){
+        saleServ.editSale(sale.getId(),sale);
+        return saleServ.findSale(sale.getId());
+    }
 }
